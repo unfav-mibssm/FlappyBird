@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flappy Bird - My Version</title>
+    <title>Flappy Bird - Precision Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
         #game-container { 
             position: relative; 
             width: 100vw; 
             height: 100vh; 
             background: #70c5ce; 
-            transition: background 0.5s;
+            overflow: hidden;
         }
         #bird {
             position: absolute;
-            width: 50px;
-            height: 35px;
+            width: 44px; /* Reduced visual size slightly for better feel */
+            height: 30px;
             left: 50px;
             top: 50%;
             background-image: url('https://i.postimg.cc/05HgJxfZ/yellowbird-midflap.png');
@@ -28,18 +28,20 @@
             position: absolute;
             width: 60px;
             background: #73bf2e;
-            border: 2px solid #000;
-            right: -60px;
+            border: 3px solid #543847; /* Darker border to see the edges clearly */
+            right: -70px;
+            box-sizing: border-box;
         }
         #score {
             position: absolute;
-            top: 20px;
+            top: 10%;
             width: 100%;
             text-align: center;
-            font-size: 48px;
+            font-size: 60px;
             color: white;
-            text-shadow: 2px 2px 0 #000;
+            text-shadow: 3px 3px 0 #000;
             z-index: 20;
+            user-select: none;
         }
         #message {
             position: absolute;
@@ -48,9 +50,14 @@
             transform: translate(-50%, -50%);
             text-align: center;
             color: white;
-            font-size: 24px;
-            text-shadow: 1px 1px 0 #000;
+            font-size: 28px;
+            text-shadow: 2px 2px 0 #000;
             z-index: 30;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            user-select: none;
         }
     </style>
 </head>
@@ -58,7 +65,7 @@
 
 <div id="game-container">
     <div id="score">0</div>
-    <div id="message">Click or Space to Start</div>
+    <div id="message">TAP TO START</div>
     <div id="bird"></div>
 </div>
 
@@ -68,28 +75,33 @@
     const scoreElement = document.getElementById('score');
     const message = document.getElementById('message');
 
-    // Game Variables
+    // Configuration
     let birdY = window.innerHeight / 2;
     let velocity = 0;
-    let gravity = 0.25;
-    let gap = 170;
+    let gravity = 0.3;
+    let jumpForce = -7;
+    let gap = 180; // Slightly wider gap for fairness
     let score = 0;
     let isGameOver = true;
     let pipes = [];
+    let animationId;
 
     function startGame() {
         isGameOver = false;
         score = 0;
         birdY = window.innerHeight / 2;
         velocity = 0;
-        pipes.forEach(p => p.remove());
+        pipes.forEach(p => {
+            p.topPipe.remove();
+            p.bottomPipe.remove();
+        });
         pipes = [];
         scoreElement.innerText = '0';
         message.style.display = 'none';
-        requestAnimationFrame(update);
+        gameLoop();
     }
 
-    function update() {
+    function gameLoop() {
         if (isGameOver) return;
 
         // Physics
@@ -97,52 +109,53 @@
         birdY += velocity;
         bird.style.top = birdY + 'px';
 
-        // Rotate bird based on velocity
-        let rotation = Math.min(Math.max(velocity * 4, -20), 90);
+        // Bird Tilt
+        let rotation = Math.min(Math.max(velocity * 3, -20), 90);
         bird.style.transform = `rotate(${rotation}deg)`;
 
-        // Collision: Floor or Ceiling
-        if (birdY < 0 || birdY + 35 > window.innerHeight) {
+        // Check if hit ceiling or floor
+        if (birdY < 0 || birdY + 30 > window.innerHeight) {
             endGame();
         }
 
-        // Pipe Management
-        if (pipes.length === 0 || pipes[pipes.length - 1].x < window.innerWidth - 250) {
+        // Spawn Pipes
+        if (pipes.length === 0 || pipes[pipes.length - 1].x < window.innerWidth - 280) {
             createPipe();
         }
 
-        pipes.forEach((pipeObj, index) => {
-            pipeObj.x -= 3;
-            pipeObj.topPipe.style.left = pipeObj.x + 'px';
-            pipeObj.bottomPipe.style.left = pipeObj.x + 'px';
+        // Move and Check Pipes
+        pipes.forEach((p, index) => {
+            p.x -= 3.5; // Pipe Speed
+            p.topPipe.style.left = p.x + 'px';
+            p.bottomPipe.style.left = p.x + 'px';
 
-            // Collision with Pipes
-            if (checkCollision(pipeObj)) {
+            // Collision Check (The Fixed Part)
+            if (checkCollision(p)) {
                 endGame();
             }
 
-            // Score point
-            if (!pipeObj.passed && pipeObj.x < 50) {
-                pipeObj.passed = true;
+            // Score Logic
+            if (!p.passed && p.x + 60 < 50) {
+                p.passed = true;
                 score++;
                 scoreElement.innerText = score;
             }
 
-            // Remove off-screen pipes
-            if (pipeObj.x < -60) {
-                pipeObj.topPipe.remove();
-                pipeObj.bottomPipe.remove();
+            // Cleanup
+            if (p.x < -100) {
+                p.topPipe.remove();
+                p.bottomPipe.remove();
                 pipes.splice(index, 1);
             }
         });
 
-        requestAnimationFrame(update);
+        animationId = requestAnimationFrame(gameLoop);
     }
 
     function createPipe() {
-        const minHeight = 50;
-        const totalPipeHeight = window.innerHeight - gap;
-        const topHeight = Math.floor(Math.random() * (totalPipeHeight - minHeight)) + minHeight;
+        const minHeight = 100;
+        const range = window.innerHeight - gap - (minHeight * 2);
+        const topHeight = Math.floor(Math.random() * range) + minHeight;
         
         const topPipe = document.createElement('div');
         topPipe.className = 'pipe';
@@ -159,16 +172,34 @@
 
         pipes.push({
             x: window.innerWidth,
-            topPipe: topPipe,
-            bottomPipe: bottomPipe,
-            topHeight: topHeight,
+            topPipe,
+            bottomPipe,
+            topHeight,
             passed: false
         });
     }
 
     function checkCollision(p) {
-        if (p.x < 100 && p.x + 60 > 50) {
-            if (birdY < p.topHeight || birdY + 35 > p.topHeight + gap) {
+        // Hitbox Buffer: Bird is 44x30. 
+        // We shrink the hitbox by 6px so it's more forgiving.
+        const b = {
+            left: 50 + 6,
+            right: 50 + 44 - 6,
+            top: birdY + 6,
+            bottom: birdY + 30 - 6
+        };
+
+        const pBox = {
+            left: p.x,
+            right: p.x + 60,
+            top: p.topHeight,
+            bottom: p.topHeight + gap
+        };
+
+        // If bird is horizontally inside the pipe
+        if (b.right > pBox.left && b.left < pBox.right) {
+            // If bird is NOT inside the gap
+            if (b.top < pBox.top || b.bottom > pBox.bottom) {
                 return true;
             }
         }
@@ -177,22 +208,28 @@
 
     function endGame() {
         isGameOver = true;
+        cancelAnimationFrame(animationId);
         message.style.display = 'block';
-        message.innerHTML = `Game Over!<br>Score: ${score}<br>Click to Restart`;
+        message.innerHTML = `GAME OVER<br><small>Score: ${score}</small><br>TAP TO RESTART`;
     }
 
-    function flap() {
+    function handleInput(e) {
+        if (e.type === 'keydown' && e.code !== 'Space') return;
+        
         if (isGameOver) {
             startGame();
         } else {
-            velocity = -6;
-                    }
+            velocity = jumpForce;
+        }
     }
 
-    window.addEventListener('mousedown', flap);
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') flap();
-    });
+    window.addEventListener('mousedown', handleInput);
+    window.addEventListener('keydown', handleInput);
+    window.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevents double-tapping zoom on mobile
+        handleInput(e);
+    }, {passive: false});
+
 </script>
 
 </body>
