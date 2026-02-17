@@ -186,3 +186,14 @@
             startGame();
         } else {
             velocity = -6;
+                    }
+    }
+
+    window.addEventListener('mousedown', flap);
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') flap();
+    });
+</script>
+
+</body>
+</html>
